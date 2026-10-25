@@ -11,8 +11,9 @@ export function supabaseEnv() {
 
 /** Per-request client carrying the signed-in user's session, so RLS applies to every query. */
 export async function createClient(requestId?: string) {
-  const { url, key } = supabaseEnv();
+  // Read cookies first: it marks the route as dynamic even when env vars are missing at build time.
   const cookieStore = await cookies();
+  const { url, key } = supabaseEnv();
   return createServerClient(url, key, {
     global: requestId ? { headers: { "x-request-id": requestId } } : undefined,
     cookies: {
