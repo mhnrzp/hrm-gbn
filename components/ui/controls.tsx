@@ -6,7 +6,7 @@ import { CalendarDays, ChevronDown, Clock3, X } from "lucide-react";
 import { DayPicker } from "@daypicker/persian";
 import "@daypicker/react/style.css";
 import { cn, Alert, Button } from "./primitives";
-import { faDigits, formatDate } from "@/lib/format";
+import { faDigits, faNumber, formatDate, normalizeAmountInput } from "@/lib/format";
 
 /* ── Form field shell: bordered box, 10px label over 12px value ─────────── */
 
@@ -69,6 +69,28 @@ export function SelectField({ label, required, error, className, id, options, pl
           </option>
         ))}
       </select>
+    </FieldShell>
+  );
+}
+
+/** Toman amount: shows Persian digits with grouping, emits ASCII digits only ("12500000"). */
+export function TomanField({ label, value, onChange, required, error, className, disabled }: { label: string; value: string; onChange: (digits: string) => void; required?: boolean; error?: string; className?: string; disabled?: boolean }) {
+  const id = useId();
+  const shown = value ? `${faNumber(BigInt(value))}` : "";
+  return (
+    <FieldShell label={label} required={required} error={error} htmlFor={id} className={className}>
+      <input
+        id={id}
+        inputMode="numeric"
+        autoComplete="off"
+        disabled={disabled}
+        aria-invalid={!!error}
+        placeholder="۰"
+        value={shown}
+        onChange={(e) => onChange(normalizeAmountInput(e.target.value).replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 15))}
+        className={inputClass}
+      />
+      <span className="text-xs text-ink">تومان</span>
     </FieldShell>
   );
 }

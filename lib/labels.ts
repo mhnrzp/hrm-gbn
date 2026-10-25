@@ -31,3 +31,19 @@ export const DUE_FILTER: Record<string, string> = {
 };
 
 export const ROLE_LABEL: Record<string, string> = { manager: "مدیر", employee: "کارمند" };
+
+export const INVOICE_STATE: Record<string, { label: string; tone: Tone }> = {
+  unpaid: { label: "پرداخت‌نشده", tone: "amber" },
+  due_soon: { label: "پرداخت‌نشده", tone: "amber" },
+  overdue: { label: "سررسید گذشته", tone: "red" },
+  paid: { label: "پرداخت‌شده", tone: "green" },
+  cancelled: { label: "لغوشده", tone: "gray" },
+};
+
+export const PAYMENT_METHOD: Record<string, string> = {
+  bank_transfer: "انتقال بانکی",
+  card: "کارت به کارت",
+  cash: "نقدی",
+  cheque: "چک",
+  other: "سایر",
+};
