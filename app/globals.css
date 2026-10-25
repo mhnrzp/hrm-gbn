@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+/* Design tokens from Figma "GBN HRM" variables. Light theme only (the only one designed). */
+@theme {
+  --color-brand: #1877f2;
+  --color-brand-hover: #1264d8;
+  --color-surface-blue: #edf4ff;
+  --color-app: #f7f9fc;
+  --color-card: #ffffff;
+  --color-ink: #1f2937;
+  --color-muted: #64748b;
+  --color-line: #e8edf3;
+  --color-success: #16a34a;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-purple: #8b5cf6;
+  --color-tint-red: #fef2f2;
+  --color-tint-amber: #fffbeb;
+  --color-tint-green: #effbf3;
+  --color-tint-purple: #f5f0ff;
+
+  --radius-xs: 4px;
+  --radius-badge: 5px;
+  --radius-ctl: 8px;
+  --radius-card: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 20px;
+
+  --font-sans: var(--font-vazirmatn), Tahoma, sans-serif;
+}
+
+html {
+  background: var(--color-app);
+  color: var(--color-ink);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* Latin-only values (emails, URLs, codes) keep their own direction inside RTL text. */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* Compact tables preference (settings → ظاهر برنامه). */
+[data-density="compact"] .data-row {
+  min-height: 48px;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
