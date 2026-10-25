@@ -77,6 +77,18 @@ export async function parseBody<T>(req: NextRequest, schema: ZodType<T>): Promis
   return schema.parse(json);
 }
 
+/** Like parseBody, but an empty body is treated as `{}`. */
+export async function parseOptionalBody<T>(req: NextRequest, schema: ZodType<T>): Promise<T> {
+  const raw = await req.text();
+  if (!raw.trim()) return schema.parse({});
+  try {
+    return schema.parse(JSON.parse(raw));
+  } catch (err) {
+    if (err instanceof SyntaxError) throw new AppError("BAD_REQUEST", { reason: "invalid_json" });
+    throw err;
+  }
+}
+
 export function parseQuery<T>(req: NextRequest, schema: ZodType<T>): T {
   return schema.parse(Object.fromEntries(req.nextUrl.searchParams));
 }

@@ -218,7 +218,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
 
 export function Segmented<T extends string>({ value, onChange, options, className }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; className?: string }) {
   return (
-    <div role="tablist" className={cn("inline-flex rounded-ctl bg-app p-1", className)}>
+    <div role="tablist" className={cn("inline-flex gap-[2px] rounded-ctl bg-app p-[3px]", className)}>
       {options.map((o) => (
         <button
           key={o.value}
@@ -226,12 +226,78 @@ export function Segmented<T extends string>({ value, onChange, options, classNam
           role="tab"
           aria-selected={value === o.value}
           onClick={() => onChange(o.value)}
-          className={cn("rounded-[6px] px-3.5 py-1.5 text-xs leading-[1.7]", value === o.value ? "bg-card font-bold text-brand shadow-sm" : "text-muted hover:text-ink")}
+          className={cn("rounded-[6px] px-3.5 py-[7px] text-xs leading-[1.7]", value === o.value ? "bg-card font-bold text-brand" : "text-muted hover:text-ink")}
         >
           {o.label}
         </button>
       ))}
     </div>
+  );
+}
+
+/* ── Popover menu (فهرست بازشو) used for filters and row actions ─────── */
+
+export function useDismiss(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && close();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, close]);
+  return ref;
+}
+
+export type MenuItem = { key: string; label: string; danger?: boolean; selected?: boolean; onSelect: () => void };
+
+export function Menu({ trigger, items, align = "start", className }: { trigger: (props: { open: boolean; toggle: () => void }) => ReactNode; items: MenuItem[]; align?: "start" | "end"; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const ref = useDismiss(open, () => setOpen(false));
+  return (
+    <div ref={ref} className={cn("relative", className)}>
+      {trigger({ open, toggle: () => setOpen((o) => !o) })}
+      {open && (
+        <div role="menu" className={cn("absolute top-full z-40 mt-1 flex min-w-[186px] flex-col gap-1 rounded-card border border-line bg-card p-2 shadow-lg", align === "start" ? "right-0" : "left-0")}>
+          {items.map((item) => (
+            <button
+              key={item.key}
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className={cn("rounded-[6px] px-2 py-1.5 text-right text-xs leading-[1.7] hover:bg-app", item.danger ? "text-danger" : "text-ink", item.selected && "bg-surface-blue font-bold text-brand")}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Filter button from Figma ("همه وضعیت‌ها" + icon) opening a single-choice menu. */
+export function FilterMenu<T extends string>({ label, icon: Icon, value, options, onChange, allLabel }: { label: string; icon: typeof ChevronDown; value: T | undefined; options: { value: T; label: string }[]; onChange: (v: T | undefined) => void; allLabel: string }) {
+  const current = options.find((o) => o.value === value);
+  return (
+    <Menu
+      trigger={({ toggle, open }) => (
+        <Button variant="secondary" icon={Icon} onClick={toggle} aria-expanded={open} className={cn(current && "border-brand text-brand")}>
+          {current?.label ?? label}
+        </Button>
+      )}
+      items={[
+        { key: "__all", label: allLabel, selected: !value, onSelect: () => onChange(undefined) },
+        ...options.map((o) => ({ key: o.value, label: o.label, selected: o.value === value, onSelect: () => onChange(o.value) })),
+      ]}
+    />
   );
 }
 

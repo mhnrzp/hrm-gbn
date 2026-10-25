@@ -1,8 +1,25 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AppError, unwrap } from "@/lib/errors";
 import type { Member } from "@/lib/auth";
 import type { InviteMemberInput } from "@/lib/validation/team";
+
+export type MemberOption = { user_id: string; full_name: string; job_title: string; role: "manager" | "employee"; avatar_path: string | null };
+
+/** Active members for assignee / filter dropdowns (public directory fields only). */
+export async function listMemberOptions(db: SupabaseClient, orgId: string): Promise<MemberOption[]> {
+  const rows = unwrap(
+    await db
+      .from("organization_memberships")
+      .select("user_id, job_title, role, profiles!organization_memberships_user_id_fkey(full_name, avatar_path)")
+      .eq("organization_id", orgId)
+      .eq("status", "active"),
+  ) as unknown as { user_id: string; job_title: string; role: "manager" | "employee"; profiles: { full_name: string; avatar_path: string | null } | null }[];
+  return rows
+    .map((r) => ({ user_id: r.user_id, job_title: r.job_title, role: r.role, full_name: r.profiles?.full_name ?? "", avatar_path: r.profiles?.avatar_path ?? null }))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, "fa"));
+}
 
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";

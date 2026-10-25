@@ -89,18 +89,89 @@ create table public.job_runs (
 );
 create index job_runs_name_idx on public.job_runs (job_name, started_at desc);
 
--- Emit an outbox event inside the caller's transaction (deduplicated).
-create or replace function app.emit(org uuid, event_type text, entity_type text, entity_id uuid, payload jsonb, dedupe_key text)
+-- Emit an outbox event inside the caller's transaction (deduplicated). The emitter decides recipients,
+-- so the outbox processor stays generic. category: critical | task_status | leave_requests | reminder.
+create or replace function app.emit(
+  org uuid, p_event_type text, p_entity_type text, p_entity_id uuid,
+  recipients uuid[], title_key text, message_data jsonb, category text, p_dedupe_key text
+)
 returns void
 language sql
 security definer
 set search_path = ''
 as $$
   insert into public.outbox_events (organization_id, event_type, entity_type, entity_id, payload, dedupe_key)
-  values (org, event_type, entity_type, entity_id, coalesce(payload, '{}'), dedupe_key)
+  select org, p_event_type, p_entity_type, p_entity_id,
+    jsonb_build_object('recipients', to_jsonb(r.ids), 'title_key', title_key, 'message_data', coalesce(message_data, '{}'), 'category', category),
+    p_dedupe_key
+  from (select array(select distinct x from unnest(recipients) x where x is not null) as ids) r
+  where cardinality(r.ids) > 0
   on conflict (dedupe_key) do nothing;
 $$;
-revoke all on function app.emit(uuid, text, text, uuid, jsonb, text) from public;
+revoke all on function app.emit(uuid, text, text, uuid, uuid[], text, jsonb, text, text) from public;
+
+-- Active managers of an organisation (notification recipients).
+create or replace function app.org_managers(org uuid)
+returns uuid[]
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(array_agg(user_id), '{}') from public.organization_memberships
+  where organization_id = org and role = 'manager' and status = 'active';
+$$;
+revoke all on function app.org_managers(uuid) from public;
+
+-- Fan pending outbox events out into in-app notifications. Idempotent (unique recipient + dedupe_key),
+-- safe to overlap (SKIP LOCKED), retries with exponential backoff. Called by pg_cron.
+create or replace function app.process_outbox(p_batch integer default 200)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  ev public.outbox_events;
+  done integer := 0;
+begin
+  for ev in
+    select * from public.outbox_events
+    where processed_at is null and next_attempt_at <= now()
+    order by created_at
+    limit p_batch
+    for update skip locked
+  loop
+    begin
+      insert into public.notifications (organization_id, recipient_user_id, type, entity_type, entity_id, title_key, message_data, dedupe_key)
+      select ev.organization_id, r.uid, ev.event_type, ev.entity_type, ev.entity_id,
+             ev.payload ->> 'title_key', coalesce(ev.payload -> 'message_data', '{}'), ev.dedupe_key
+      from (select (jsonb_array_elements_text(ev.payload -> 'recipients'))::uuid as uid) r
+      join public.organization_memberships m on m.organization_id = ev.organization_id and m.user_id = r.uid and m.status = 'active'
+      left join public.member_preferences p on p.organization_id = ev.organization_id and p.user_id = r.uid
+      where ev.payload ->> 'category' = 'critical'
+         or (coalesce(p.in_app_enabled, true)
+             and case ev.payload ->> 'category'
+                   when 'task_status' then coalesce(p.notify_task_status, false)
+                   when 'leave_requests' then coalesce(p.notify_leave_requests, true)
+                   else true
+                 end)
+      on conflict (recipient_user_id, dedupe_key) do nothing;
+
+      update public.outbox_events set processed_at = now(), attempt_count = attempt_count + 1, last_error_code = null where id = ev.id;
+      done := done + 1;
+    exception when others then
+      update public.outbox_events
+        set attempt_count = attempt_count + 1,
+            next_attempt_at = now() + make_interval(mins => least(power(2, attempt_count)::int, 720)),
+            last_error_code = sqlstate
+        where id = ev.id;
+    end;
+  end loop;
+  return done;
+end;
+$$;
+revoke all on function app.process_outbox(integer) from public;
 
 -- Generic append-only audit trail. TG_ARGV[0] = comma-separated columns whose values are redacted.
 create or replace function app.audit_row()
@@ -249,7 +320,8 @@ begin
   values (p_org, p_user, lower(p_email), p_role, p_invited_by, p_email_sent);
 
   perform app.emit(p_org, 'team.member_invited', 'membership', mem_id,
-    jsonb_build_object('member_name', p_full_name, 'invited_by', p_invited_by), 'team.member_invited:' || mem_id);
+    array(select x from unnest(app.org_managers(p_org)) x where x <> p_invited_by),
+    'team.member_invited', jsonb_build_object('member_name', p_full_name), 'critical', 'team.member_invited:' || mem_id);
   return mem_id;
 end;
 $$;
@@ -308,7 +380,11 @@ begin
   if p_patch ? 'phone' then update public.profile_private set phone = nullif(p_patch ->> 'phone', '') where user_id = m.user_id; end if;
 
   if new_status = 'inactive' and m.status <> 'inactive' then
-    perform app.emit(m.organization_id, 'team.member_deactivated', 'membership', m.id, '{}'::jsonb, 'team.member_deactivated:' || m.id || ':' || now());
+    perform app.emit(m.organization_id, 'team.member_deactivated', 'membership', m.id,
+      array(select x from unnest(app.org_managers(m.organization_id)) x where x <> auth.uid()),
+      'team.member_deactivated',
+      jsonb_build_object('member_name', (select full_name from public.profiles where id = m.user_id)),
+      'critical', 'team.member_deactivated:' || m.id || ':' || extract(epoch from now())::bigint);
   end if;
   return m.id;
 end;
