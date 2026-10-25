@@ -17,8 +17,8 @@ const { values } = parseArgs({
 });
 
 const { name, slug, email, manager, timezone } = values;
-if (!name || !slug || !email || !manager) {
-  console.error('Usage: pnpm bootstrap --name "<org name>" --slug <slug> --email <manager email> --manager "<manager full name>"');
+if (!name || !slug || (email && !manager)) {
+  console.error('Usage: pnpm bootstrap --name "<org name>" --slug <slug> [--email <manager email> --manager "<manager full name>"]');
   process.exit(1);
 }
 
@@ -33,8 +33,22 @@ if (!url || !secret) {
 const admin = createClient(url, secret, { auth: { persistSession: false } });
 
 async function main() {
-  const { data: org, error: orgError } = await admin.from("organizations").insert({ name, slug, timezone }).select("id").single();
-  if (orgError) throw orgError;
+  // Idempotent: reuse the organisation if the slug already exists.
+  const existing = await admin.from("organizations").select("id").eq("slug", slug!).maybeSingle();
+  if (existing.error) throw existing.error;
+  let org = existing.data;
+  if (!org) {
+    const created = await admin.from("organizations").insert({ name, slug, timezone }).select("id").single();
+    if (created.error) throw created.error;
+    org = created.data;
+    console.log(`Organisation ${slug} created (${org.id}).`);
+  } else {
+    console.log(`Organisation ${slug} already exists (${org.id}).`);
+  }
+  if (!email) {
+    console.log("No --email given: no manager invited. Run again with --email/--manager to invite the first real manager.");
+    return;
+  }
 
   const { data: invite, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email!.toLowerCase(), {
     data: { full_name: manager },
@@ -48,7 +62,7 @@ async function main() {
   await admin.from("organization_memberships").insert({ organization_id: org.id, user_id: userId, role: "manager", status: "invited", job_title: "مدیر مجموعه" }).throwOnError();
   await admin.from("invitations").insert({ organization_id: org.id, user_id: userId, invited_email: email!.toLowerCase(), role: "manager" }).throwOnError();
 
-  console.log(`Organisation ${slug} created (${org.id}). Invitation email sent to ${email}.`);
+  console.log(`Invitation email sent to ${email}.`);
 }
 
 main().catch((err) => {
