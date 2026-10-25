@@ -1,8 +1,12 @@
-import { PageTitle } from "@/components/ui/primitives";
 import { requirePageMember } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { getDashboard } from "@/lib/services/dashboard";
+import { listMemberOptions } from "@/lib/services/team";
+import { DashboardView } from "@/components/dashboard/dashboard-view";
 
-// Dashboard widgets are wired in milestone 5; until then the page shows only its Figma header.
 export default async function DashboardPage() {
-  await requirePageMember();
-  return <PageTitle title="داشبورد" subtitle="خلاصه وضعیت تیم" />;
+  const member = await requirePageMember();
+  const db = await createClient();
+  const [data, members] = await Promise.all([getDashboard(db, member), listMemberOptions(db, member.orgId)]);
+  return <DashboardView data={data} members={members} me={{ userId: member.userId, role: member.role, timezone: member.org.timezone, weekendDays: member.org.weekendDays }} />;
 }

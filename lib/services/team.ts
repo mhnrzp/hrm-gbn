@@ -21,6 +21,52 @@ export async function listMemberOptions(db: SupabaseClient, orgId: string): Prom
     .sort((a, b) => a.full_name.localeCompare(b.full_name, "fa"));
 }
 
+export type DirectoryRow = {
+  membership_id: string;
+  user_id: string;
+  full_name: string;
+  avatar_path: string | null;
+  job_title: string;
+  role: "manager" | "employee";
+  status: "invited" | "active" | "inactive";
+  work_mode: "office" | "remote";
+  on_leave_today: boolean;
+  active_task_count: number | null;
+  email: string | null;
+  phone: string | null;
+  joined_at: string | null;
+  manager_id: string | null;
+};
+
+export async function teamDirectory(db: SupabaseClient, includeInactive = false) {
+  return unwrap(await db.rpc("team_directory", { p_include_inactive: includeInactive })) as DirectoryRow[];
+}
+
+export type MemberProfile = {
+  membership_id: string;
+  user_id: string;
+  full_name: string;
+  avatar_path: string | null;
+  job_title: string;
+  role: "manager" | "employee";
+  status: string;
+  work_mode: "office" | "remote";
+  can_view_private: boolean;
+  on_leave_today: boolean;
+  contact: { email: string; phone: string | null; joined_at: string | null; manager_id: string | null; manager_name: string | null; annual_leave_quota_days: number; has_custom_quota: boolean } | null;
+  stats: { active_tasks: number; completed_tasks: number } | null;
+  leave_this_week: boolean | null;
+  recent_activity: { kind: string; task_title?: string; body?: string | null; metadata?: Record<string, unknown> | null; start_date?: string; at: string }[] | null;
+};
+
+export async function memberProfile(db: SupabaseClient, userId: string) {
+  return unwrap(await db.rpc("member_profile", { p_user: userId })) as MemberProfile;
+}
+
+export async function updateMember(db: SupabaseClient, membershipId: string, patch: Record<string, unknown>) {
+  return { membership_id: unwrap(await db.rpc("update_member", { p_member_id: membershipId, p_patch: patch })) as string };
+}
+
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 }

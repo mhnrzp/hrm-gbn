@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Bell, CalendarDays, ChevronDown, LayoutDashboard, ListChecks, LogOut, Menu, Receipt, Search, Settings, Users, X, type LucideIcon } from "lucide-react";
+import { Bell, CalendarDays, ChevronDown, LayoutDashboard, ListChecks, LogOut, Menu, Receipt, Settings, Users, X, type LucideIcon } from "lucide-react";
 import { Avatar, Badge, cn } from "@/components/ui/primitives";
+import { HeaderSearch } from "./header-search";
 import { faNumber } from "@/lib/format";
 
 export type ShellUser = { id: string; fullName: string; avatarUrl: string | null; role: "manager" | "employee" };
@@ -53,7 +54,7 @@ export function AppShell({ user, unreadCount, todayLabel, search, children }: { 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Desktop header */}
         <header className="sticky top-0 z-30 hidden h-[68px] items-center gap-4 border-b border-line bg-card px-7 lg:flex">
-          {search ?? <SearchBox />}
+          {search ?? <HeaderSearch />}
           <p className="min-w-0 flex-1 text-[11px] leading-[1.7] text-muted">{todayLabel}</p>
           <Link href="/notifications" aria-label="اعلان‌ها" className="flex items-center gap-4 text-muted hover:text-ink">
             <Bell size={18} />
@@ -126,15 +127,6 @@ function SidebarContent({ items, pathname, onNavigate }: { items: NavItem[]; pat
         })}
       </nav>
     </>
-  );
-}
-
-function SearchBox() {
-  return (
-    <form action="/search" className="flex h-[38px] w-[260px] items-center gap-2 rounded-ctl border border-line bg-card px-3 focus-within:border-brand" role="search">
-      <Search size={16} className="text-muted" aria-hidden />
-      <input name="q" placeholder="جستجو..." aria-label="جستجو" className="min-w-0 flex-1 bg-transparent text-xs text-ink outline-none placeholder:text-muted" />
-    </form>
   );
 }
 

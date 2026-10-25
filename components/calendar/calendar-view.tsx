@@ -322,12 +322,12 @@ function LeaveCard({ leave, tz, isManager, me, jobTitle, onReview }: { leave: Le
 
 /* ── Week grid: members × 7 days with lane-packed bars ── */
 
-function WeekGrid({ days, today, rows, items, tz, names, onOpen }: { days: string[]; today: string; rows: MemberOption[]; items: FeedItem[]; tz: string; names: Map<string, string>; onOpen: (i: FeedItem) => void }) {
+export function WeekGrid({ days, today, rows, items, tz, names, onOpen, memberWidth = 200, minWidth = 960 }: { days: string[]; today: string; rows: MemberOption[]; items: FeedItem[]; tz: string; names: Map<string, string>; onOpen: (i: FeedItem) => void; memberWidth?: number; minWidth?: number }) {
   const col = (iso: string) => days.indexOf(iso);
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[960px]">
-        <div className="grid bg-app text-center" style={{ gridTemplateColumns: "200px repeat(7, minmax(0, 1fr))" }}>
+      <div style={{ minWidth }}>
+        <div className="grid bg-app text-center" style={{ gridTemplateColumns: `${memberWidth}px repeat(7, minmax(0, 1fr))` }}>
           <div className="flex h-[52px] items-center justify-center text-[11px]">اعضای تیم</div>
           {days.map((d) => {
             const p = jalaliParts(d, "UTC");
@@ -360,7 +360,7 @@ function WeekGrid({ days, today, rows, items, tz, names, onOpen }: { days: strin
           });
           const height = Math.max(88, 12 + laneEnds.length * 38);
           return (
-            <div key={m.user_id} className="grid border-b border-line" style={{ gridTemplateColumns: "200px repeat(7, minmax(0, 1fr))", minHeight: height }}>
+            <div key={m.user_id} className="grid border-b border-line" style={{ gridTemplateColumns: `${memberWidth}px repeat(7, minmax(0, 1fr))`, minHeight: height }}>
               <div className="flex items-center gap-2 p-3" style={{ gridRow: `1 / span ${Math.max(1, laneEnds.length)}` }}>
                 <Avatar name={m.full_name} seed={m.user_id} />
                 <span className="text-xs font-bold">{m.full_name}</span>

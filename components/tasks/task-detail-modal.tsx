@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CircleCheck, PencilLine, Send } from "lucide-react";
 import { Alert, Avatar, Badge, Button, LoadingState } from "@/components/ui/primitives";
 import { ErrorState, Modal, TextAreaField } from "@/components/ui/controls";
+import { Attachments } from "@/components/ui/attachments";
 import { api, ApiError } from "@/lib/client-api";
 import { PRIORITY, RECURRENCE_LABEL, TASK_STATUS } from "@/lib/labels";
 import { faNumber, formatDate, formatPercent, formatStamp, formatTime } from "@/lib/format";
@@ -230,6 +231,7 @@ export function TaskDetailModal({ occurrenceId, me, onClose, onChanged, onEdit }
           </>
         )}
       </div>
+      <Attachments entityType="task_occurrence" entityId={data.id} canUpload={!!mine || isManager} />
       {data.task_occurrence_assignees.length > 1 && (
         <p className="text-[10px] text-muted">{faNumber(data.task_occurrence_assignees.filter((a) => a.progress_status === "completed").length)} از {faNumber(data.task_occurrence_assignees.length)} نفر کار خود را تکمیل کرده‌اند.</p>
       )}

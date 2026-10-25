@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, CircleCheck, CreditCard, Download, TriangleAlert } from "lucide-react";
 import { Alert, Badge, Button, ButtonLink, LoadingState } from "@/components/ui/primitives";
 import { DateField, ErrorState, Modal, SelectField, TextAreaField, TextField } from "@/components/ui/controls";
+import { Attachments } from "@/components/ui/attachments";
 import { api, ApiError } from "@/lib/client-api";
 import { faDigits, faNumber, formatDate, formatStamp, formatTime, formatToman, jalaliParts, localIsoDate } from "@/lib/format";
 import { INVOICE_STATE, PAYMENT_METHOD } from "@/lib/labels";
@@ -204,6 +205,7 @@ export function InvoiceDetailModal({ id, startWithPayment, timezone, onClose, on
           ))}
         </div>
       )}
+      <Attachments entityType="invoice" entityId={data.id} />
       <p className="text-[10px] text-muted">
         ثبت توسط {data.created_by_name} • {formatStamp(data.created_at, timezone)}
       </p>
