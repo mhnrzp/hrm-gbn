@@ -30,10 +30,17 @@ type MembershipRow = {
  * Current user + their active membership, read fresh from the database on every request
  * (never from stale JWT claims), so deactivation takes effect immediately (AUTH-04).
  */
-export const getMember = cache(async (requestId?: string): Promise<{ member: Member | null; signedIn: boolean }> => {
+/** Managers must use TOTP (aal2). Default: required in production, opt-in elsewhere via REQUIRE_MANAGER_MFA=true. */
+export function managerMfaRequired() {
+  const flag = process.env.REQUIRE_MANAGER_MFA;
+  return flag ? flag === "true" : process.env.NODE_ENV === "production";
+}
+
+export const getMember = cache(async (requestId?: string): Promise<{ member: Member | null; signedIn: boolean; aal?: string }> => {
   const db = await createClient(requestId);
   const { data: claims } = await db.auth.getClaims();
   const userId = claims?.claims?.sub;
+  const aal = claims?.claims?.aal as string | undefined;
   if (!userId) return { member: null, signedIn: false };
 
   const { data } = await db
@@ -48,6 +55,7 @@ export const getMember = cache(async (requestId?: string): Promise<{ member: Mem
   if (!data?.organizations) return { member: null, signedIn: true };
   return {
     signedIn: true,
+    aal,
     member: {
       userId,
       membershipId: data.id,
@@ -68,18 +76,20 @@ export const getMember = cache(async (requestId?: string): Promise<{ member: Mem
 
 /** Pages: redirect when signed out or without an active membership. */
 export async function requirePageMember(opts?: { manager?: boolean }): Promise<Member> {
-  const { member, signedIn } = await getMember();
+  const { member, signedIn, aal } = await getMember();
   if (!signedIn) redirect("/login");
   if (!member) redirect("/auth/no-access");
+  if (member.role === "manager" && managerMfaRequired() && aal !== "aal2") redirect("/auth/mfa");
   if (opts?.manager && member.role !== "manager") redirect("/");
   return member;
 }
 
 /** API routes / services: throw typed errors instead of redirecting. */
 export async function requireMember(requestId?: string): Promise<Member> {
-  const { member, signedIn } = await getMember(requestId);
+  const { member, signedIn, aal } = await getMember(requestId);
   if (!signedIn) throw new AppError("UNAUTHENTICATED");
   if (!member) throw new AppError("FORBIDDEN");
+  if (member.role === "manager" && managerMfaRequired() && aal !== "aal2") throw new AppError("MFA_REQUIRED");
   return member;
 }
 

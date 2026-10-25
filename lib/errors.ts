@@ -4,6 +4,7 @@ export const ERRORS = {
   BAD_REQUEST: { status: 400, fa: "درخواست نامعتبر است." },
   UNAUTHENTICATED: { status: 401, fa: "ابتدا وارد حساب کاربری شوید." },
   FORBIDDEN: { status: 403, fa: "اجازه انجام این کار را ندارید." },
+  MFA_REQUIRED: { status: 403, fa: "برای ادامه، ورود دومرحله‌ای را تکمیل کنید." },
   NOT_FOUND: { status: 404, fa: "مورد درخواستی پیدا نشد." },
   CONFLICT: { status: 409, fa: "این تغییر با داده‌های فعلی تداخل دارد. صفحه را تازه کنید." },
   VALIDATION_FAILED: { status: 422, fa: "اطلاعات واردشده معتبر نیست." },

@@ -4,6 +4,7 @@ import { ZodError, type ZodType } from "zod";
 import { AppError, ERRORS, fromDbError } from "@/lib/errors";
 import { requireManager, requireMember, type Member } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 
@@ -29,9 +30,10 @@ function errorResponse(err: unknown, requestId: string) {
     // Structured, non-sensitive log line; never the request body.
     console.error(JSON.stringify({ level: "error", requestId, code: appErr.code, error: err instanceof Error ? err.message : String(err) }));
   }
+  const retry = appErr.code === "RATE_LIMITED" ? { "retry-after": String(appErr.details?.retry_after_seconds ?? 60) } : undefined;
   return NextResponse.json(
     { error: { code: appErr.code, message_fa: ERRORS[appErr.code].fa, details: appErr.details ?? {} }, meta: { request_id: requestId } },
-    { status: appErr.status },
+    { status: appErr.status, headers: retry },
   );
 }
 
@@ -56,6 +58,8 @@ export function route<P extends Record<string, string> = Record<string, never>>(
     try {
       assertSameOrigin(req);
       const member = access === "manager" ? await requireManager(requestId) : await requireMember(requestId);
+      // 120 writes / 600 reads per user per minute per instance.
+      rateLimit(`${member.userId}:${req.method === "GET" ? "r" : "w"}`, req.method === "GET" ? 600 : 120);
       const db = await createClient(requestId);
       const params = (await context?.params) ?? ({} as P);
       const result = await handler({ req, requestId, member, db, params });

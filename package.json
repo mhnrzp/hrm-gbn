@@ -12,7 +12,8 @@
     "test:integration": "vitest run --config tests/integration/vitest.config.mts",
     "test:e2e": "playwright test",
     "db:push": "tsx scripts/db-push.ts",
-    "bootstrap": "tsx scripts/bootstrap-org.ts"
+    "bootstrap": "tsx scripts/bootstrap-org.ts",
+    "seed": "tsx scripts/seed-dev.ts"
   },
   "dependencies": {
     "@daypicker/persian": "10.0.2",

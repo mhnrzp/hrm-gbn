@@ -7,6 +7,8 @@ const PUBLIC_PATHS = ["/login", "/auth/"];
 // Authorization (membership, role) is enforced again in pages, API routes and RLS — this is only the gate.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  // Local dev before .env.local exists: let the static pages (login, /dev/ui) render.
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return response;
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
     cookies: {
